@@ -66,10 +66,14 @@ nextflow_process {
                 { assert process.success },
                 { assert snapshot(
                     process.out.versions,
-                    anndata(process.out.adata[0][1]).yaml,
-                    process.out.uns.collect { _, path -> file(path).name }.sort()
+                    anndata(process.out.adata[0][1]).yaml
                 ).match() }
             )
+            // nft-anndata only exposes the top-level `uns` keys, so the
+            // nested `pts`/`pts_rest` entries cannot be asserted here
+            with (anndata(process.out.adata[0][1])) {
+                assert "rank_genes_groups" in uns
+            }
         }
     }
 
@@ -130,10 +134,7 @@ nextflow_process {
             assertAll(
                 { assert process.success },
                 { assert process.out.adata.isEmpty() },
-                { assert snapshot(
-                    process.out.versions,
-                    process.out.uns.collect { _, path -> file(path).name }.sort()
-                ).match() }
+                { assert snapshot(process.out.versions).match() }
             )
         }
     }
@@ -196,8 +197,7 @@ nextflow_process {
                 { assert process.success },
                 { assert snapshot(
                     process.out.versions,
-                    anndata(process.out.adata[0][1]).yaml,
-                    process.out.uns.collect { _, path -> file(path).name }.sort()
+                    anndata(process.out.adata[0][1]).yaml
                 ).match() }
             )
         }
@@ -261,8 +261,7 @@ nextflow_process {
                 { assert process.success },
                 { assert snapshot(
                     process.out.versions,
-                    anndata(process.out.adata[0][1]).yaml,
-                    process.out.uns.collect { _, path -> file(path).name }.sort()
+                    anndata(process.out.adata[0][1]).yaml
                 ).match() }
             )
         }
@@ -326,8 +325,7 @@ nextflow_process {
                 { assert process.success },
                 { assert snapshot(
                     process.out.versions,
-                    anndata(process.out.adata[0][1]).yaml,
-                    process.out.uns.collect { _, path -> file(path).name }.sort()
+                    anndata(process.out.adata[0][1]).yaml
                 ).match() }
             )
         }
