@@ -4,7 +4,9 @@
 
 include { ADATA_MERGE                                          } from "../../../modules/local/adata/merge"
 include { QUARTO_NOTEBOOK as REPORT_INTEGRATED                 } from "../../../modules/nf-core/quarto/notebook"
+include { SCANPY_EXPORT_MARKERS                                } from "../../../modules/local/scanpy/export_markers"
 include { SCANPY_HARMONY                                       } from "../../../modules/local/scanpy/harmony"
+include { SCANPY_RANK_GENES_GROUPS                             } from "../../../modules/local/scanpy/rank_genes_groups"
 include { SCANPY_SCANORAMA                                     } from "../../../modules/local/scanpy/scanorama"
 include { SDATA_UPDATE_TABLE as SDATA_UPDATE_TABLE_INTEGRATION } from "../../../modules/local/sdata/update_table"
 
@@ -27,6 +29,13 @@ workflow INTEGRATION {
     umap_min_dist                  //   float: Minimum distance between embedded points
     umap_spread                    //   float: Scale of embedded points
     integration_cluster_resolution //   float: Integration cluster resolution
+    rank_genes_method              //  string: Method to use for differential expression testing
+    report_n_top_markers           // integer: Number of top marker genes per cluster listed in the report
+    markers_thr_adj_pvalue         //   float: Adjusted P-value threshold for marker genes
+    markers_n_top                  // integer: Maximum number of marker genes per cluster in the JSON
+    markers_pct_nz                 //   float: Minimum fraction of spots in the cluster expressing a marker gene
+    markers_min_logfc              //   float: Minimum log-fold change for marker genes
+    markers_sep                    //  string: Separator between the parts of the marker-gene set ids
 
     main:
 
@@ -104,8 +113,34 @@ workflow INTEGRATION {
         integration_cluster_resolution,
         leiden_key_added
     )
-    ch_adata_clustered = CLUSTERING.out.adata
+
+    //
+    // MODULE: Differential expression analysis of the integrated clusters
+    //
+    SCANPY_RANK_GENES_GROUPS (
+        CLUSTERING.out.adata,
+        leiden_key_added,
+        rank_genes_method,
+        true // write_adata
+    )
+    ch_adata_ranked = SCANPY_RANK_GENES_GROUPS.out.adata
+    ch_adata_clustered = ch_adata_ranked
         .map { _meta, h5ad -> h5ad }
+
+    //
+    // MODULE: Export marker genes per integrated cluster as JSON
+    //
+    // logreg computes no p-values, fold changes or expression fractions to filter on
+    if (rank_genes_method != 'logreg') {
+        SCANPY_EXPORT_MARKERS (
+            ch_adata_ranked,
+            markers_thr_adj_pvalue,
+            markers_n_top,
+            markers_pct_nz,
+            markers_min_logfc,
+            markers_sep
+        )
+    }
 
     //
     // MODULE: Update SpatialData tables
@@ -113,7 +148,7 @@ workflow INTEGRATION {
     library_key = 'library_id'
     ch_sdata_adata = ch_sdata_merged
         .map  { zarr -> [[id: integration_method], zarr]}
-        .join ( CLUSTERING.out.adata )
+        .join ( ch_adata_ranked )
     SDATA_UPDATE_TABLE_INTEGRATION (
         ch_sdata_adata,
         library_key
@@ -130,6 +165,7 @@ workflow INTEGRATION {
         input_sdata: integration_method + ".zarr",
         sample_col: 'library_id',
         cluster_col: 'clusters_' + integration_method,
+        n_top_markers: report_n_top_markers,
         artifact_dir: "artifacts",
     ]
     integration_inputs = ch_sdata_integrated

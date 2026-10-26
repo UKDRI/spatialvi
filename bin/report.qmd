@@ -28,6 +28,7 @@ genes. You can also click each individual figure to see it in full screen.
 #| tags: [parameters]
 input_sdata = "sdata.zarr"
 n_top_svgs = 20
+n_top_markers = 250
 artifact_dir = "artifacts"
 ```
 
@@ -52,7 +53,7 @@ import scanpy as sc
 import squidpy as sq
 import spatialdata
 import matplotlib.pyplot as plt
-from IPython.display import display, Markdown
+from IPython.display import display, HTML, Markdown
 
 # Create artefact directory
 os.makedirs(artifact_dir, exist_ok=True)
@@ -92,15 +93,18 @@ def save_figure(fig, filename, dpi=150):
         bbox_inches='tight'
     )
 
-def display_table(table, hide_index=True, format_dict=None):
+def style_table(table, hide_index=True, format_dict=None):
     """
-    Display a data frame as a table with default styling with optional removal
+    Style a data frame as a table with default styling with optional removal
     of the axis and the functionality to supply formatting dictionary.
 
     Arguments:
-        table (DataFrame): The data frame to be displayed
+        table (DataFrame): The data frame to be styled
         hide_index (boolean): Whether to hide the data frame index or not
         format_dict (dict): A dictionary with column-specific formatting
+
+    Returns:
+        Styler: The styled table
     """
 
     # Default style with nf-core green hover and right alignment for all columns
@@ -122,7 +126,75 @@ def display_table(table, hide_index=True, format_dict=None):
     if format_dict:
         styled = styled.format(format_dict)
 
-    display(styled)
+    return styled
+
+def display_table(table, hide_index=True, format_dict=None):
+    """
+    Display a data frame as a table with default styling with optional removal
+    of the axis and the functionality to supply formatting dictionary.
+
+    Arguments:
+        table (DataFrame): The data frame to be displayed
+        hide_index (boolean): Whether to hide the data frame index or not
+        format_dict (dict): A dictionary with column-specific formatting
+    """
+    display(style_table(table, hide_index=hide_index, format_dict=format_dict))
+
+def create_table_tabset(content, max_height=500):
+    """
+    Programmatically create tabsets with headers and scrollable tables.
+
+    Arguments:
+        content (list): A list of (str, DataFrame, dict) tuples with the tab
+            name, the table and its column-specific formatting (or None)
+        max_height (int): Height in pixels above which a table scrolls
+    """
+    display(Markdown('::: {.panel-tabset}'))
+    for name, table, format_dict in content:
+        display(Markdown(f"#### {name}"))
+        # A single HTML output, so that the container wraps the whole table
+        styled = style_table(table, format_dict=format_dict)
+        display(HTML(
+            f'<div style="max-height: {max_height}px; overflow-y: auto">'
+            f'{styled.to_html()}</div>'
+        ))
+        display(Markdown(f" "))
+    display(Markdown(':::'))
+
+def marker_table(adata, group, n_top):
+    """
+    Build a table of the top ranked marker genes of one group.
+
+    Arguments:
+        adata (AnnData): Object with `sc.tl.rank_genes_groups` results
+        group (str): The group to get the marker genes for
+        n_top (int): The number of top ranked genes to include
+
+    Returns:
+        tuple: The table (DataFrame) and its column-specific formatting (dict)
+    """
+    markers = sc.get.rank_genes_groups_df(adata, group=group).head(n_top)
+
+    # Columns and formatting; statistics that a method does not compute (e.g.
+    # p-values for `logreg`, or the fractions without `pts=True`) are left out
+    columns = [
+        ('names', 'Gene', None, 1),
+        ('scores', 'Score', '{:.2f}', 1),
+        ('logfoldchanges', 'log2FC', '{:.2f}', 1),
+        ('pvals_adj', 'Adj. p-value', '{:.3g}', 1),
+        ('pct_nz_group', '% in cluster', '{:.1f} %', 100),
+        ('pct_nz_reference', '% in rest', '{:.1f} %', 100),
+    ]
+    table = pd.DataFrame({'Rank': range(1, len(markers) + 1)})
+    format_dict = {}
+    for col, label, fmt, factor in columns:
+        if col not in markers.columns:
+            continue
+        values = markers[col].to_numpy()
+        table[label] = values * factor if factor != 1 else values
+        if fmt:
+            format_dict[label] = fmt
+    return table, format_dict
 ```
 
 ```{python load-data}
@@ -475,21 +547,47 @@ if 'clusters' in adata.obs:
     display_table(cluster_stats, format_dict=format_dict)
 ```
 
-# Differential expression
+# Marker genes
+
+```{python markers-intro}
+#| output: asis
+has_markers = 'rank_genes_groups' in adata.uns
+if has_markers:
+    # Groups that genes were ranked for, and the test that was used
+    marker_groups = [str(g) for g in adata.uns['rank_genes_groups']['names'].dtype.names]
+    marker_method = str(adata.uns['rank_genes_groups']['params']['method'])
+    method_labels = {
+        'wilcoxon': 'a Wilcoxon rank-sum test',
+        't-test': 'a t-test',
+        't-test_overestim_var': 'a t-test with overestimated variance',
+        'logreg': 'logistic regression',
+    }
+    method_label = method_labels.get(marker_method, f"the `{marker_method}` method")
+    has_pts = 'pts' in adata.uns['rank_genes_groups']
+    pts_text = (
+        " The fraction of spots expressing each gene inside the cluster and "
+        "in all other spots is computed as well."
+        if has_pts else ""
+    )
+    display(Markdown(
+        f"Marker genes were identified for each of the `{len(marker_groups)}` "
+        f"clusters using {method_label} (`{marker_method}`), comparing the "
+        f"spots of a cluster against all other spots.{pts_text}"
+    ))
+else:
+    display(Markdown(
+        "Marker genes were not computed for this sample, _e.g._ because it "
+        "has only a single cluster."
+    ))
+```
 
 ## Top marker genes per cluster
 
-The following plot shows a heatmap of the top 5 differentially expressed genes
-per cluster, including a dendrogram indicating similarity between clusters.
+The following plot shows a heatmap of the top 5 marker genes per cluster,
+including a dendrogram indicating similarity between clusters.
 
 ```{python degs-heatmap}
-if 'rank_genes_groups' in adata.uns:
-    # Get number of clusters
-    groups = adata.uns['rank_genes_groups']['names'].dtype.names
-    n_groups = len(groups)
-
-    display(Markdown(f"Differential expression computed for `{n_groups}` clusters"))
-
+if has_markers:
     # Heatmap of top genes
     try:
         sc.pl.rank_genes_groups_heatmap(
@@ -506,19 +604,24 @@ if 'rank_genes_groups' in adata.uns:
         print(f"Could not generate heatmap: {e}")
 ```
 
-The following plot shows the mean expression of each of the top 5 genes (for
-each cluster) across all clusters, as well as the fraction of cells expressing
-that gene in each cluster. Depending on the number of clusters, it is likely
-that not all of the figure is visible without having to horizontally scroll, but
-you can also click the figure itself to see it in full screen.
+The following plot shows the expression of each of the top 3 marker genes (for
+each cluster) across all clusters, as well as the fraction of spots expressing
+that gene in each cluster (dot size). The mean expression (colour) is scaled
+per gene to the range 0 to 1 across the clusters (`standard_scale='var'`), so
+that genes with different expression levels can be compared: for each gene,
+the cluster with the highest mean expression is shown in the darkest colour.
+Depending on the number of clusters, it is likely that not all of the figure is
+visible without having to horizontally scroll, but you can also click the
+figure itself to see it in full screen.
 
 ```{python degs-dotplot}
-if 'rank_genes_groups' in adata.uns:
+if has_markers:
     try:
         sc.pl.rank_genes_groups_dotplot(
             adata,
-            n_genes=5,
             groupby='clusters',
+            standard_scale='var',
+            n_genes=3,
             show=False
         )
         fig = plt.gcf()
@@ -528,28 +631,29 @@ if 'rank_genes_groups' in adata.uns:
         print(f"Could not generate dotplot: {e}")
 ```
 
-## Top genes per cluster
+## Marker genes per cluster
 
-The following table lists the top 5 differentially expressed genes for each
-cluster in the dataset.
+```{python degs-table-intro}
+#| output: asis
+if has_markers:
+    display(Markdown(
+        f"The following tables list the top `{n_top_markers}` ranked marker "
+        f"genes of each cluster, ordered by their score, together with their "
+        f"log2 fold change, adjusted p-value and the percentage of spots "
+        f"expressing the gene in the cluster and in all other spots, where "
+        f"available for the method used. The genes are listed regardless of "
+        f"their adjusted p-value. Scroll within a table to see all of its rows."
+    ))
+```
 
 ```{python degs-table}
-if 'rank_genes_groups' in adata.uns:
-    n_top = 5
-    clusters = adata.uns['rank_genes_groups']['names'].dtype.names
-
-    # Build dictionary of `{cluster: [genes]}`
-    data = {}
-    for cluster in clusters:
-        data[f"Cluster {cluster}"] = [
-            adata.uns['rank_genes_groups']['names'][cluster][i]
-            for i in range(n_top)
-        ]
-
-    # Convert to data frame and print
-    degs_table = pd.DataFrame(data, index=range(1, n_top + 1))
-    degs_table.insert(loc=0, column='Rank', value=degs_table.index)
-    display_table(degs_table)
+#| output: asis
+if has_markers:
+    marker_tables = []
+    for cluster in marker_groups:
+        table, format_dict = marker_table(adata, cluster, int(n_top_markers))
+        marker_tables.append((f"Cluster {cluster}", table, format_dict))
+    create_table_tabset(marker_tables)
 ```
 
 # Spatial analysis

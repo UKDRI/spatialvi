@@ -18,6 +18,10 @@ compatible with further downstream analyses and/or exploration in _e.g._
 
 ### `Added`
 
+- Export marker genes per cluster as gzipped JSON (`SCANPY_EXPORT_MARKERS`, ported from UK DRI scdownstream), per sample and for the integrated clusters, with the `--markers_*` filter parameters
+- Compute marker genes for the integrated clusters and show them in the integration report
+- Compute the fraction of spots expressing each marker gene (`pts=True`) and skip ranking for a single cluster in `SCANPY_RANK_GENES_GROUPS`; it no longer writes a pickled `uns` slot file
+- Show a dotplot of the top 3 marker genes per cluster and per-cluster tables of the top `--report_n_top_markers` (default 250) marker genes in the reports
 - Add pickled slot data outputs and `adata/extend`; don't output "raw" layer in raw data [[#153](https://github.com/nf-core/spatialvi/pull/153/)]
 - Deprecate `quartonotebook` module in favour of `quarto/notebook` [[#148](https://github.com/nf-core/spatialvi/pull/148)]
 - Separate reports into separate scripts [[#137](https://github.com/nf-core/spatialvi/pull/137)]

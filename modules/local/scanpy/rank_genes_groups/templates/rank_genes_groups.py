@@ -3,7 +3,9 @@
 Rank genes for characterizing groups (differential expression analysis).
 
 Identifies marker genes for each group by comparing gene expression
-between groups. Results are stored in adata.uns["rank_genes_groups"].
+between groups. Results are stored in adata.uns["rank_genes_groups"],
+including the fraction of observations expressing each gene inside
+(`pts`) and outside (`pts_rest`) of each group.
 """
 
 # Disable OpenMP CPU topology detection for macOS compatibility
@@ -18,9 +20,7 @@ os.environ["XDG_CACHE_HOME"] = os.path.join(os.getcwd(), ".cache")
 
 import importlib.metadata
 import logging
-import pickle
 import platform
-from pathlib import Path
 
 import anndata as ad
 import scanpy as sc
@@ -35,7 +35,28 @@ threadpool_limits(int("${task.cpus}"))
 
 
 def rank_genes(adata, groupby, method):
-    """Rank genes by groups for differential expression analysis."""
+    """
+    Rank genes by groups for differential expression analysis.
+
+    Each group is compared against all other observations. Ranking is skipped
+    with a warning when `groupby` has fewer than two groups, since there is
+    nothing to compare against.
+
+    Parameters
+    ----------
+    adata : AnnData
+        Annotated data matrix.
+    groupby : str
+        Column in adata.obs with the groups to compare.
+    method : str
+        Statistical test passed to `sc.tl.rank_genes_groups`.
+
+    Returns
+    -------
+    AnnData
+        AnnData with results in adata.uns["rank_genes_groups"], unless ranking
+        was skipped.
+    """
     logger.info(f"Adata shape: {adata.shape}")
     logger.info(f"Groupby: {groupby}")
     logger.info(f"Method: {method}")
@@ -43,13 +64,24 @@ def rank_genes(adata, groupby, method):
     if groupby not in adata.obs.columns:
         raise ValueError(f"Column '{groupby}' not found in adata.obs")
 
+    n_groups = adata.obs[groupby].nunique()
+    if n_groups < 2:
+        logger.warning(
+            f"Column '{groupby}' has {n_groups} group(s); at least two are needed "
+            f"to rank genes, so the ranking is skipped"
+        )
+        return adata
+
+    # `pts=True` also stores the fraction of observations expressing each gene
+    # in (`pts`) and outside (`pts_rest`) each group; the `logreg` method does
+    # not compute these
     sc.tl.rank_genes_groups(
         adata,
         groupby=groupby,
-        method=method
+        method=method,
+        pts=True
     )
 
-    n_groups = adata.obs[groupby].nunique()
     logger.info(f"Computed DEGs for {n_groups} groups")
 
     # Print top genes per group
@@ -59,14 +91,6 @@ def rank_genes(adata, groupby, method):
         logger.info(f"  Group {group} top 5: {', '.join(top_genes)}")
 
     return adata
-
-
-def write_pickle(data, slot, name):
-    """Write data to a `<slot>/<name>.pkl` pickle file."""
-    Path(slot).mkdir(exist_ok=True)
-    with open(f"{slot}/{name}.pkl", "wb") as f:
-        pickle.dump(data, f, protocol=5)
-    logger.info(f"Written slot data to: {slot}/{name}.pkl")
 
 
 def write_versions(process_name):
@@ -100,8 +124,7 @@ def main():
     # Rank genes
     adata = rank_genes(adata, groupby, method)
 
-    # Write slot data and output
-    write_pickle(adata.uns["rank_genes_groups"], "uns", "rank_genes_groups")
+    # Write output
     if write_adata:
         adata.write_h5ad(output_adata)
         logger.info(f"Written AnnData with DEGs to: {output_adata}")

@@ -19,6 +19,7 @@ data using the following steps:
 - [FastQC](#fastqc)
 - [Per-sample data](#per-sample-data)
 - [Per-sample reports](#per-sample-reports)
+- [Marker genes](#marker-genes)
 - [Integration](#integration)
 - [Workflow reporting](#workflow-reporting)
   - [Pipeline information](#pipeline-information) - Report metrics generated
@@ -73,8 +74,12 @@ content among other metrics.
     from the SpatialData object before any downstream analysis.
   - `<SAMPLE>.h5ad`: Processed data in AnnData format, including QC metrics,
     clustering, differential expression, and spatial analysis results, as well
-    as the raw counts in `adata.layers["raw"]`.
+    as the raw counts in `adata.layers["raw"]`. The marker genes per cluster
+    are in `uns["rank_genes_groups"]`, including the fraction of spots
+    expressing each gene inside (`pts`) and outside (`pts_rest`) each cluster.
   - `<SAMPLE>_svg.csv`: List of spatially variable genes.
+  - `<SAMPLE>_markers.json.gz`: Marker genes per cluster as gzipped JSON (see
+    [Marker genes](#marker-genes)).
 
 </details>
 
@@ -103,8 +108,34 @@ explore them in _e.g._ Excel.
 </details>
 
 The per-sample reports contain quality control metrics, clustering results,
-differential expression analysis, neighbourhood enrichment, cluster interaction
-matrices, and spatially variable gene analysis.
+marker genes, neighbourhood enrichment, cluster interaction matrices, and
+spatially variable gene analysis. The marker genes section shows a heatmap and
+a dotplot of the top marker genes per cluster, and a table per cluster with the
+top `--report_n_top_markers` (default 250) ranked genes and their statistics.
+
+## Marker genes
+
+Marker genes are computed per cluster with `scanpy.tl.rank_genes_groups`,
+comparing the spots of a cluster against all other spots with the method given
+by `--rank_genes_method` (default: Wilcoxon rank-sum test). This is done per
+sample on the Leiden clusters and, unless integration is skipped, on the
+integrated clusters. The results are stored in the AnnData and SpatialData
+outputs and shown in the reports.
+
+The marker genes are also exported as gzipped JSON files
+(`<SAMPLE>/data/<SAMPLE>_markers.json.gz` and
+`integration/data/<METHOD>_markers.json.gz`), in the same format as the UK DRI
+scdownstream pipeline. Each file contains one gene set per cluster, with the
+id `genes<SEP>cluster<SEP><CLUSTER>` (`<SEP>` is `--markers_sep`, default
+`--`), holding the gene names and their p-values, adjusted p-values, log2 fold
+changes, scores and fractions of spots expressing the gene in and outside the
+cluster. Only genes with an adjusted p-value below `--markers_thr_adj_pvalue`,
+expressed in at least `--markers_pct_nz` of the cluster's spots and with a
+log2 fold change of at least `--markers_min_logfc` are kept, at most
+`--markers_n_top` per cluster, ordered by score. The filter parameters are
+stored in the file as well. The JSON export is skipped with
+`--rank_genes_method logreg`, which computes no p-values, fold changes or
+expression fractions.
 
 ## Integration
 
@@ -128,10 +159,14 @@ selected per sample and ranked by in how many samples they are highly variable.
     while `obsm["X_pca"]` holds each spot's coordinates in the PCA of its own
     sample. Only gene annotations that are the same in every sample are kept
     in `var`; per-sample gene statistics are available in the per-sample
-    output.
+    output. The marker genes of the integrated clusters are in
+    `uns["rank_genes_groups"]`.
+  - `<METHOD>_markers.json.gz`: Marker genes per integrated cluster as gzipped
+    JSON (see [Marker genes](#marker-genes)).
 - `integration/reports/`
   - `report-integrated.html`: Integration report with cross-sample comparisons,
-    batch mixing assessment, and integrated clustering results.
+    batch mixing assessment, integrated clustering results and the marker
+    genes of the integrated clusters.
   - `report-integrated.qmd`: Quarto source notebook of the integration report.
   - `report-integrated.yml`: Parameters used by the integration report.
   - `_extensions/`: Quarto nf-core extension.

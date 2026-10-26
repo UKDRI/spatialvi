@@ -16,6 +16,7 @@ pipeline_info/*.{html,json,txt,yml}
 **/*.zarr/**
 **/_extensions/**
 **/*_svg.csv
+**/*_markers.json.gz
 **/{components,projection,variance,}.csv
 **/{barcodes,features}.tsv.gz
 **/{feature_slice,molecule_info,raw_feature_cell_matrix}.h5

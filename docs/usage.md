@@ -139,6 +139,20 @@ for downstream analysis).
 > to the [Space Ranger Downloads page](https://support.10xgenomics.com/spatial-gene-expression/software/downloads/latest)
 > to obtain the correct probeset.
 
+## Marker genes
+
+Marker genes are computed for each cluster with the method given by
+`--rank_genes_method` (default `wilcoxon`). The reports list the top
+`--report_n_top_markers` (default 250) ranked genes per cluster. The exported
+marker-gene JSON files keep, per cluster, at most `--markers_n_top` genes
+(default 100) that pass the `--markers_thr_adj_pvalue` (default 0.05),
+`--markers_pct_nz` (default 0.1) and `--markers_min_logfc` (default 0)
+filters. The parts of the gene set ids are separated by `--markers_sep`
+(default `--`); the run stops if a cluster name contains it. A separator that
+starts with `-` is best set in a `-params-file`. With
+`--rank_genes_method logreg` no JSON files are written, as logistic regression
+computes no p-values, fold changes or expression fractions.
+
 ## Running the pipeline
 
 The typical command for running the pipeline is as follows:

@@ -52,6 +52,12 @@ workflow NFCORE_SPATIALVI {
     umap_spread                    //   float: Scale of embedded points
     cluster_resolution             //   float: Spot clustering resolution
     rank_genes_method              //  string: Method to use for differential expression testing
+    report_n_top_markers           // integer: Number of top marker genes per cluster listed in the reports
+    markers_thr_adj_pvalue         //   float: Adjusted P-value threshold for marker genes
+    markers_n_top                  // integer: Maximum number of marker genes per cluster in the JSON
+    markers_pct_nz                 //   float: Minimum fraction of spots in the cluster expressing a marker gene
+    markers_min_logfc              //   float: Minimum log-fold change for marker genes
+    markers_sep                    //  string: Separator between the parts of the marker-gene set ids
     spatial_coord_type             //  string: Type of spatial coordinate system
     spatial_n_neighbors            // integer: Number of spatial neighborhoods
     svg_autocorr_method            // string : Autocorrelation method
@@ -91,6 +97,12 @@ workflow NFCORE_SPATIALVI {
         umap_spread,
         cluster_resolution,
         rank_genes_method,
+        report_n_top_markers,
+        markers_thr_adj_pvalue,
+        markers_n_top,
+        markers_pct_nz,
+        markers_min_logfc,
+        markers_sep,
         spatial_coord_type,
         spatial_n_neighbors,
         svg_autocorr_method,
@@ -155,6 +167,12 @@ workflow {
         params.umap_spread,
         params.cluster_resolution,
         params.rank_genes_method,
+        params.report_n_top_markers,
+        params.markers_thr_adj_pvalue,
+        params.markers_n_top,
+        params.markers_pct_nz,
+        params.markers_min_logfc,
+        params.markers_sep,
         params.spatial_coord_type,
         params.spatial_n_neighbors,
         params.svg_autocorr_method,

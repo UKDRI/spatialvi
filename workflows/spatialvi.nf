@@ -10,6 +10,7 @@ include { ADATA_EXTEND                } from "../modules/local/adata/extend"
 include { SCANPY_CALCULATE_QC_METRICS } from "../modules/local/scanpy/calculate_qc_metrics"
 include { SCANPY_FILTER               } from "../modules/local/scanpy/filter"
 include { SCANPY_RANK_GENES_GROUPS    } from "../modules/local/scanpy/rank_genes_groups"
+include { SCANPY_EXPORT_MARKERS       } from "../modules/local/scanpy/export_markers"
 include { SDATA_MERGE                 } from "../modules/local/sdata/merge"
 include { SDATA_TO_LEGACY_ANNDATA     } from "../modules/local/sdata/to_legacy_anndata"
 include { MULTIQC                     } from "../modules/nf-core/multiqc"
@@ -58,6 +59,12 @@ workflow SPATIALVI {
     umap_spread                    //   float: Scale of embedded points
     cluster_resolution             //   float: Spot clustering resolution
     rank_genes_method              //  string: Method to use for differential expression testing
+    report_n_top_markers           // integer: Number of top marker genes per cluster listed in the reports
+    markers_thr_adj_pvalue         //   float: Adjusted P-value threshold for marker genes
+    markers_n_top                  // integer: Maximum number of marker genes per cluster in the JSON
+    markers_pct_nz                 //   float: Minimum fraction of spots in the cluster expressing a marker gene
+    markers_min_logfc              //   float: Minimum log-fold change for marker genes
+    markers_sep                    //  string: Separator between the parts of the marker-gene set ids
     spatial_coord_type             //  string: Type of spatial coordinate system
     spatial_n_neighbors            // integer: Number of spatial neighborhoods
     svg_autocorr_method            //  string: Autocorrelation method
@@ -236,6 +243,21 @@ workflow SPATIALVI {
         ch_adata = ADATA_EXTEND.out.adata
 
         //
+        // MODULE: Export marker genes per cluster as JSON
+        //
+        // logreg computes no p-values, fold changes or expression fractions to filter on
+        if (rank_genes_method != 'logreg') {
+            SCANPY_EXPORT_MARKERS (
+                ch_adata,
+                markers_thr_adj_pvalue,
+                markers_n_top,
+                markers_pct_nz,
+                markers_min_logfc,
+                markers_sep
+            )
+        }
+
+        //
         // MODULE: Update SpatialData with AnnData results
         //
         SDATA_UPDATE_TABLE (
@@ -258,9 +280,10 @@ workflow SPATIALVI {
         ch_report_params = ch_sdata_output
             .map { _meta, sdata ->
                 [
-                    input_sdata  : sdata.name,
-                    n_top_svgs   : n_top_svgs,
-                    artifact_dir : "artifacts"
+                    input_sdata   : sdata.name,
+                    n_top_svgs    : n_top_svgs,
+                    n_top_markers : report_n_top_markers,
+                    artifact_dir  : "artifacts"
                 ]
             }
         REPORT (
@@ -319,7 +342,14 @@ workflow SPATIALVI {
             neighbors_n_pcs,
             umap_min_dist,
             umap_spread,
-            integration_cluster_resolution
+            integration_cluster_resolution,
+            rank_genes_method,
+            report_n_top_markers,
+            markers_thr_adj_pvalue,
+            markers_n_top,
+            markers_pct_nz,
+            markers_min_logfc,
+            markers_sep
         )
         ch_integration_html        = INTEGRATION.out.html
         ch_integration_notebook    = INTEGRATION.out.notebook
