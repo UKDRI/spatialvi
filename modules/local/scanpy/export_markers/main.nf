@@ -26,7 +26,7 @@ process SCANPY_EXPORT_MARKERS {
     stub:
     prefix = task.ext.prefix ?: "${meta.id}_markers"
     """
-    touch ${prefix}.json.gz
+    echo "" | gzip > ${prefix}.json.gz
     touch versions.yml
     """
 }
