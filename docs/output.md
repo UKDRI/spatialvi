@@ -108,10 +108,12 @@ explore them in _e.g._ Excel.
 </details>
 
 The per-sample reports contain quality control metrics, clustering results,
-marker genes, neighbourhood enrichment, cluster interaction matrices, and
-spatially variable gene analysis. The marker genes section shows a heatmap and
-a dotplot of the top marker genes per cluster, and a table per cluster with the
-top `--report_n_top_markers` (default 250) ranked genes and their statistics.
+differential genes per cluster, neighbourhood enrichment, cluster interaction
+matrices, and spatially variable gene analysis. The "Differential genes per
+cluster" section shows a heatmap and a dotplot of the top differential genes
+per cluster, and a searchable table per cluster with the top
+`--report_n_top_markers` (default 250) ranked genes and their statistics; click
+a column header to sort the table by that column.
 
 ## Marker genes
 
@@ -165,8 +167,9 @@ selected per sample and ranked by in how many samples they are highly variable.
     JSON (see [Marker genes](#marker-genes)).
 - `integration/reports/`
   - `report-integrated.html`: Integration report with cross-sample comparisons,
-    batch mixing assessment, integrated clustering results and the marker
-    genes of the integrated clusters.
+    batch mixing assessment, integrated clustering results and the
+    differential genes of the integrated clusters (searchable, sortable
+    tables as in the per-sample reports).
   - `report-integrated.qmd`: Quarto source notebook of the integration report.
   - `report-integrated.yml`: Parameters used by the integration report.
   - `_extensions/`: Quarto nf-core extension.
