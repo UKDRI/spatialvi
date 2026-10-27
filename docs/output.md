@@ -159,8 +159,10 @@ selected per sample and ranked by in how many samples they are highly variable.
   - `<METHOD>.h5ad`: Integrated AnnData object with batch-corrected embeddings
     and clustering. The PCA of the merged data is in `obsm["X_pca_merged"]`,
     while `obsm["X_pca"]` holds each spot's coordinates in the PCA of its own
-    sample. Only gene annotations that are the same in every sample are kept
-    in `var`; per-sample gene statistics are available in the per-sample
+    sample. Likewise, the integrated UMAP is in `obsm["X_umap_<METHOD>"]`,
+    while `obsm["X_umap"]` holds each spot's coordinates in the UMAP of its
+    own sample. Only gene annotations that are the same in every sample are
+    kept in `var`; per-sample gene statistics are available in the per-sample
     output. The marker genes of the integrated clusters are in
     `uns["rank_genes_groups"]`.
   - `<METHOD>_markers.json.gz`: Marker genes per integrated cluster as gzipped
