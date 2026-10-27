@@ -562,7 +562,7 @@ if has_markers:
         print(f"Could not generate dotplot: {e}")
 ```
 
-## Tables of differential genes
+## Tables of differential genes per cluster
 
 ```{python degs-search-script}
 # add table search function
