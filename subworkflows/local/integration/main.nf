@@ -165,6 +165,7 @@ workflow INTEGRATION {
         input_sdata: integration_method + ".zarr",
         sample_col: 'library_id',
         cluster_col: 'clusters_' + integration_method,
+        umap_basis: umap_key_added,
         n_top_markers: report_n_top_markers,
         artifact_dir: "artifacts",
     ]
