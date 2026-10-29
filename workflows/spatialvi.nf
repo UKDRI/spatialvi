@@ -16,6 +16,7 @@ include { SDATA_TO_LEGACY_ANNDATA     } from "../modules/local/sdata/to_legacy_a
 include { MULTIQC                     } from "../modules/nf-core/multiqc"
 include { QUARTO_NOTEBOOK as REPORT   } from "../modules/nf-core/quarto/notebook"
 include { SDATA_UPDATE_TABLE          } from "../modules/local/sdata/update_table"
+include { SDATA_ZIP                   } from "../modules/local/sdata/zip"
 
 include { INPUT_CHECK                 } from "../subworkflows/local/input_check"
 include { SPACERANGER                 } from "../subworkflows/local/spaceranger"
@@ -359,6 +360,19 @@ workflow SPATIALVI {
         ch_adata_integrated        = INTEGRATION.out.adata
     }
 
+    //
+    // MODULE: Zip the final SpatialData object for publishing
+    //
+    if (!skip_downstream && !skip_integration) {
+        ch_sdata_final = ch_sdata_integrated
+    } else {
+        ch_sdata_final = ch_sdata_merged
+            .map { zarr -> [[id: 'merged'], zarr] }
+    }
+    SDATA_ZIP (
+        ch_sdata_final
+    )
+
     // =========================================================================
     // FINALISATION AND MULTIQC
     // =========================================================================
@@ -424,7 +438,7 @@ workflow SPATIALVI {
     sdata_raw               = ch_sdata_raw               // channel: [ meta, zarr ]
     sdata                   = ch_sdata_output            // channel: [ meta, zarr ]
     sdata_merged            = ch_sdata_merged            // channel: [ zarr ]
-    sdata_integrated        = ch_sdata_integrated        // channel: [ zarr ]
+    sdata_integrated        = ch_sdata_integrated        // channel: [ meta, zarr ]
 
     // AnnData outputs
     adata                   = ch_adata                   // channel: [ meta, h5ad ]

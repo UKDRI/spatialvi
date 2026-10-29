@@ -153,9 +153,8 @@ selected per sample and ranked by in how many samples they are highly variable.
 <summary>Output files</summary>
 
 - `integration/data/`
-  - `merged.zarr`: Merged SpatialData object containing all samples (before
-    integration).
-  - `<METHOD>.zarr`: Integrated SpatialData object with batch-corrected results.
+  - `<METHOD>.zarr.zip`: Integrated SpatialData object of all samples with
+    batch-corrected results, as a single zip archive (see below).
   - `<METHOD>.h5ad`: Integrated AnnData object with batch-corrected embeddings
     and clustering. The PCA of the merged data is in `obsm["X_pca_merged"]`,
     while `obsm["X_pca"]` holds each spot's coordinates in the PCA of its own
@@ -167,6 +166,9 @@ selected per sample and ranked by in how many samples they are highly variable.
     `uns["rank_genes_groups"]`.
   - `<METHOD>_markers.json.gz`: Marker genes per integrated cluster as gzipped
     JSON (see [Marker genes](#marker-genes)).
+  - `merged.zarr.zip`: Merged SpatialData object of all samples, without
+    integration results; only published instead of `<METHOD>.zarr.zip` when
+    `--skip_integration` or `--skip_downstream` is set.
 - `integration/reports/`
   - `report-integrated.html`: Integration report with cross-sample comparisons,
     batch mixing assessment, integrated clustering results and the
@@ -179,6 +181,15 @@ selected per sample and ranked by in how many samples they are highly variable.
   - `*.png`: Individual plots from the integration report.
 
 </details>
+
+The SpatialData output is published as a single uncompressed zip archive
+instead of a `.zarr` directory, which consists of thousands of small files that
+are slow to copy and delete on network file systems. The archive contains the
+top-level `.zarr` directory, so unzipping it (_e.g._ `unzip harmony.zarr.zip`)
+recreates `harmony.zarr`, which you can then open with
+`spatialdata.read_zarr("harmony.zarr")` or a viewer such as napari-spatialdata;
+SpatialData can't read the zip archive directly. This layout follows the
+[BioImage Archive's guidance for Zarr submissions](https://www.ebi.ac.uk/bioimage-archive/help-zarr/).
 
 ## Workflow reporting
 
