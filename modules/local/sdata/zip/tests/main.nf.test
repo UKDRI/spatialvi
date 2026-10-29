@@ -1,0 +1,88 @@
+nextflow_process {
+
+    name "Test Process SDATA_ZIP"
+    script "../main.nf"
+    process "SDATA_ZIP"
+
+    tag "modules"
+    tag "modules_local"
+    tag "sdata_zip"
+
+    test("homo_sapiens - zarr") {
+
+        setup {
+            run("UNTAR") {
+                script "../../../../nf-core/untar/main.nf"
+                process {
+                    """
+                    input[0] = channel.of(
+                        tuple([ id: 'CytAssist_11mm_FFPE_Human_Glioblastoma_2' ], file("https://raw.githubusercontent.com/nf-core/test-datasets/modules/data/spatial_omics/visium/homo_sapiens/CytAssist_11mm_FFPE_Human_Glioblastoma_2.zarr.tar.gz", checkIfExists: true))
+                    )
+                    """
+                }
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = UNTAR.out.untar
+                    .map { _meta, dir -> [ [ id: 'test' ], file("\${dir}/CytAssist_11mm_FFPE_Human_Glioblastoma_2.zarr") ] }
+                """
+            }
+        }
+
+        then {
+
+            // Entry names of the archive; the archive itself is unstable
+            // because entries carry modification times
+            def zip_file = new java.util.zip.ZipFile(process.out.zip[0][1].toString())
+            def entry_names = zip_file.entries().toList()*.name.sort()
+            zip_file.close()
+
+            assertAll(
+                { assert process.success },
+                { assert entry_names.contains('test.zarr/.zgroup') },
+                { assert entry_names.every { it.startsWith('test.zarr/') } },
+                { assert snapshot(
+                    process.out.versions,
+                    entry_names
+                ).match() }
+            )
+        }
+    }
+
+    test("homo_sapiens - zarr - stub") {
+
+        options "-stub"
+
+        setup {
+            run("UNTAR") {
+                script "../../../../nf-core/untar/main.nf"
+                process {
+                    """
+                    input[0] = channel.of(
+                        tuple([ id: 'CytAssist_11mm_FFPE_Human_Glioblastoma_2' ], file("https://raw.githubusercontent.com/nf-core/test-datasets/modules/data/spatial_omics/visium/homo_sapiens/CytAssist_11mm_FFPE_Human_Glioblastoma_2.zarr.tar.gz", checkIfExists: true))
+                    )
+                    """
+                }
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = UNTAR.out.untar
+                    .map { _meta, dir -> [ [ id: 'test' ], file("\${dir}/CytAssist_11mm_FFPE_Human_Glioblastoma_2.zarr") ] }
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert snapshot(process.out).match() }
+            )
+        }
+    }
+}

@@ -16,7 +16,7 @@ include { PREPROCESSING                                        } from "../../../
 workflow INTEGRATION {
 
     take:
-    ch_sdata_merged                // channel: [ meta, zarr ]
+    ch_sdata_merged                // channel: [ zarr ]
     ch_adata                       // channel: [ meta, h5ad ]
     integration_method             //  string: Integration method to use
     normalize_target_sum           //  string: Target sum of total count normalization
@@ -181,7 +181,7 @@ workflow INTEGRATION {
     )
 
     emit:
-    sdata       = ch_sdata_integrated               // channel: [ zarr ]
+    sdata       = ch_sdata_integrated               // channel: [ meta, zarr ]
     adata       = ch_adata_clustered                // channel: [ h5ad ]
 
     html        = REPORT_INTEGRATED.out.html        // channel: [ meta, html ]

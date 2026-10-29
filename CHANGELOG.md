@@ -18,6 +18,7 @@ compatible with further downstream analyses and/or exploration in _e.g._
 
 ### `Added`
 
+- Publish the final SpatialData object as a single `<METHOD>.zarr.zip` (or `merged.zarr.zip` without integration) instead of the `merged.zarr` and `<METHOD>.zarr` directories, in the layout the BioImage Archive asks for (`SDATA_ZIP`)
 - Export marker genes per cluster as gzipped JSON (`SCANPY_EXPORT_MARKERS`, ported from UK DRI scdownstream), per sample and for the integrated clusters, with the `--markers_*` filter parameters
 - Compute marker genes for the integrated clusters and show them in the integration report
 - Compute the fraction of spots expressing each marker gene (`pts=True`) and skip ranking for a single cluster in `SCANPY_RANK_GENES_GROUPS`; it no longer writes a pickled `uns` slot file
